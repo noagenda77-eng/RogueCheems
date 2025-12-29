@@ -802,7 +802,6 @@ function getPlayerRegen() {
 function formatDamageRange(range) {
   return `${range.min}-${range.max}`;
 }
-}
 
 function addDamageFloat(x, y, amount, color) {
   damageFloats.push({
