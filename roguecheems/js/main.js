@@ -193,24 +193,18 @@ function movePlayer(dx, dy) {
 }
 
 function drawTile(x, y, type) {
-  const pixelX = x * TILE_SIZE;
-  const pixelY = y * TILE_SIZE;
-
   if (type === TILE.WALL) {
-    ctx.fillStyle = palette.wall;
-    ctx.fillRect(pixelX, pixelY, TILE_SIZE, TILE_SIZE);
+    drawSprite(sprites.wall, x, y, palette.wall, "#");
     return;
   }
 
   if (type === TILE.FLOOR) {
-    ctx.fillStyle = palette.floor;
-    ctx.fillRect(pixelX, pixelY, TILE_SIZE, TILE_SIZE);
+    drawSprite(sprites.floor, x, y, palette.floor, ".");
     return;
   }
 
   if (type === TILE.EXIT) {
-    ctx.fillStyle = palette.exit;
-    ctx.fillRect(pixelX, pixelY, TILE_SIZE, TILE_SIZE);
+    drawSprite(sprites.exit, x, y, palette.exit, "E");
   }
 }
 
@@ -480,10 +474,6 @@ function render() {
   for (let y = 0; y < MAP_HEIGHT; y += 1) {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
       drawTile(x, y, dungeon[y][x]);
-
-      if (dungeon[y][x] === TILE.EXIT) {
-        drawSprite(sprites.exit, x, y, palette.exit, "E");
-      }
     }
   }
 
