@@ -34,6 +34,7 @@ let dungeon = [];
 let player = { x: 0, y: 0 };
 let exit = { x: 0, y: 0 };
 let playerFrameIndex = 0;
+let playerFacing = 1;
 
 const palette = {
   floor: "#2b3142",
@@ -84,6 +85,7 @@ function createDungeon() {
   );
   rooms.length = 0;
   playerFrameIndex = 0;
+  playerFacing = 1;
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -215,21 +217,43 @@ function drawPlayer() {
     const frameHeight = img.naturalHeight / 2;
     const frameX = (playerFrameIndex % 2) * frameWidth;
     const frameY = Math.floor(playerFrameIndex / 2) * frameHeight;
+    ctx.save();
+    if (playerFacing === -1) {
+      ctx.translate(pixelX + TILE_SIZE, pixelY);
+      ctx.scale(-1, 1);
+    } else {
+      ctx.translate(pixelX, pixelY);
+    }
     ctx.drawImage(
       img,
       frameX,
       frameY,
       frameWidth,
       frameHeight,
-      pixelX,
-      pixelY,
+      0,
+      0,
       TILE_SIZE,
       TILE_SIZE
     );
+    ctx.restore();
     return;
   }
 
-  drawSprite(img, player.x, player.y, palette.player, "@");
+  ctx.save();
+  if (playerFacing === -1) {
+    ctx.translate(pixelX + TILE_SIZE, pixelY);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(pixelX, pixelY);
+  }
+  ctx.fillStyle = palette.player;
+  ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+  ctx.fillStyle = palette.text;
+  ctx.font = "bold 16px 'Segoe UI', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("@", TILE_SIZE / 2, TILE_SIZE / 2);
+  ctx.restore();
 }
 
 function render() {
@@ -263,11 +287,13 @@ function handleKeydown(event) {
     case "ArrowLeft":
     case "a":
     case "A":
+      playerFacing = 1;
       movePlayer(-1, 0);
       break;
     case "ArrowRight":
     case "d":
     case "D":
+      playerFacing = -1;
       movePlayer(1, 0);
       break;
     default:
@@ -279,5 +305,9 @@ function handleKeydown(event) {
 
 createDungeon();
 render();
+
+Object.values(sprites).forEach((img) => {
+  img.addEventListener("load", render);
+});
 
 window.addEventListener("keydown", handleKeydown);
