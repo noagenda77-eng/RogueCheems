@@ -326,8 +326,8 @@ function drawFloorTile(x, y) {
   const variant = floorVariants[y][x] ?? 0;
 
   if (img.complete && img.naturalWidth > 0) {
-    const columns = 2;
-    const rows = 4;
+    const columns = 4;
+    const rows = 2;
     const frameWidth = img.naturalWidth / columns;
     const frameHeight = img.naturalHeight / rows;
     const frameX = (variant % columns) * frameWidth;
