@@ -330,10 +330,8 @@ function handleWheel(event) {
   if (direction === 0) {
     return;
   }
-  zoom = Math.min(
-    ZOOM_MAX,
-    Math.max(ZOOM_MIN, zoom + (direction > 0 ? -ZOOM_STEP : ZOOM_STEP))
-  );
+  const multiplier = direction > 0 ? 1 - ZOOM_STEP : 1 + ZOOM_STEP;
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * multiplier));
   updateCamera();
   render();
 }
