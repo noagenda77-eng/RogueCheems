@@ -19,6 +19,7 @@ const BASE_CANVAS_HEIGHT = 608;
 const ZOOM_MIN = 0.75;
 const ZOOM_MAX = 12;
 const ZOOM_STEP = 0.1;
+const FOG_RADIUS = 7;
 
 const TILE = {
   WALL: 0,
@@ -64,6 +65,8 @@ let playerLevel = 1;
 let playerXp = 0;
 let playerXpToNext = 5;
 let cheeseburgers = [];
+let visibleTiles = [];
+let discoveredTiles = [];
 
 const palette = {
   floor: "#2b3142",
@@ -124,6 +127,12 @@ function createDungeon() {
   );
   wallVariants = Array.from({ length: MAP_HEIGHT }, () =>
     Array.from({ length: MAP_WIDTH }, () => null)
+  );
+  visibleTiles = Array.from({ length: MAP_HEIGHT }, () =>
+    Array.from({ length: MAP_WIDTH }, () => false)
+  );
+  discoveredTiles = Array.from({ length: MAP_HEIGHT }, () =>
+    Array.from({ length: MAP_WIDTH }, () => false)
   );
   damageFloats = [];
   isGameOver = false;
@@ -304,7 +313,11 @@ function drawEnemy(enemy) {
 }
 
 function drawEnemies() {
-  enemies.forEach((enemy) => drawEnemy(enemy));
+  enemies.forEach((enemy) => {
+    if (isVisible(enemy.x, enemy.y)) {
+      drawEnemy(enemy);
+    }
+  });
 }
 
 function drawPlayer() {
@@ -358,6 +371,9 @@ function drawPlayer() {
 
 function drawCheeseburgers() {
   cheeseburgers.forEach((cheeseburger) => {
+    if (!isVisible(cheeseburger.x, cheeseburger.y)) {
+      return;
+    }
     drawSprite(
       sprites.cheeseburger,
       cheeseburger.x,
@@ -370,6 +386,9 @@ function drawCheeseburgers() {
 
 function drawEnemyHealthBars() {
   enemies.forEach((enemy) => {
+    if (!isVisible(enemy.x, enemy.y)) {
+      return;
+    }
     const barWidth = TILE_SIZE - 6;
     const barHeight = 4;
     const pixelX = enemy.x * TILE_SIZE + 3;
@@ -774,6 +793,32 @@ function triggerGameOver() {
   gameOverOverlay.classList.remove("hidden");
 }
 
+function updateVisibility() {
+  for (let y = 0; y < MAP_HEIGHT; y += 1) {
+    for (let x = 0; x < MAP_WIDTH; x += 1) {
+      visibleTiles[y][x] = false;
+    }
+  }
+
+  for (let y = player.y - FOG_RADIUS; y <= player.y + FOG_RADIUS; y += 1) {
+    for (let x = player.x - FOG_RADIUS; x <= player.x + FOG_RADIUS; x += 1) {
+      if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) {
+        continue;
+      }
+      const dx = x - player.x;
+      const dy = y - player.y;
+      if (dx * dx + dy * dy <= FOG_RADIUS * FOG_RADIUS) {
+        visibleTiles[y][x] = true;
+        discoveredTiles[y][x] = true;
+      }
+    }
+  }
+}
+
+function isVisible(x, y) {
+  return visibleTiles[y]?.[x];
+}
+
 function updateCamera() {
   camera = {
     x: player.x * TILE_SIZE - canvas.width / (2 * zoom) + TILE_SIZE / 2,
@@ -786,16 +831,29 @@ function render() {
   ctx.save();
   ctx.scale(zoom, zoom);
   ctx.translate(-camera.x, -camera.y);
+  updateVisibility();
 
   for (let y = 0; y < MAP_HEIGHT; y += 1) {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
+      if (!discoveredTiles[y][x]) {
+        ctx.fillStyle = "#05070c";
+        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        continue;
+      }
+
       drawTile(x, y, dungeon[y][x]);
+      if (!visibleTiles[y][x]) {
+        ctx.fillStyle = "rgba(5, 7, 12, 0.65)";
+        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
     }
   }
 
   drawCheeseburgers();
   drawEnemies();
-  drawPlayer();
+  if (isVisible(player.x, player.y)) {
+    drawPlayer();
+  }
   drawEnemyHealthBars();
   drawDamageFloats();
   ctx.restore();

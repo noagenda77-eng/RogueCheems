@@ -69,13 +69,6 @@ body {
   gap: 12px;
 }
 
-.stats {
-  font-size: 1rem;
-  color: #f8f0c6;
-  display: flex;
-  gap: 12px;
-}
-
 .overlay {
   position: fixed;
   inset: 0;
