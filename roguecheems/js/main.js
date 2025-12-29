@@ -11,6 +11,12 @@ const equipWeaponText = document.getElementById("equip-weapon");
 const equipArmorText = document.getElementById("equip-armor");
 const equipAccessoryText = document.getElementById("equip-accessory");
 const inventoryList = document.getElementById("inventory-list");
+const hpFill = document.getElementById("hp-fill");
+const xpFill = document.getElementById("xp-fill");
+const menuToggle = document.getElementById("menu-toggle");
+const menuPanel = document.getElementById("menu-panel");
+const menuClose = document.getElementById("menu-close");
+const menuButtons = Array.from(document.querySelectorAll(".menu-button"));
 const gameOverOverlay = document.getElementById("game-over");
 const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
@@ -78,6 +84,7 @@ let discoveredTiles = [];
 let isPanning = false;
 let panOffset = { x: 0, y: 0 };
 let panStart = { x: 0, y: 0 };
+let activePanel = null;
 let chests = [];
 let inventory = [];
 let equipped = {
@@ -477,6 +484,14 @@ function updateHud() {
   equipWeaponText.textContent = equipped.weapon?.name ?? "None";
   equipArmorText.textContent = equipped.armor?.name ?? "None";
   equipAccessoryText.textContent = equipped.accessory?.name ?? "None";
+  if (hpFill) {
+    const hpRatio = playerMaxHp > 0 ? (playerHp / playerMaxHp) * 100 : 0;
+    hpFill.style.width = `${Math.min(100, Math.max(0, hpRatio))}%`;
+  }
+  if (xpFill) {
+    const xpRatio = playerXpToNext > 0 ? (playerXp / playerXpToNext) * 100 : 0;
+    xpFill.style.width = `${Math.min(100, Math.max(0, xpRatio))}%`;
+  }
   renderInventory();
 }
 
@@ -1093,6 +1108,15 @@ function handleKeydown(event) {
       playerFacing = -1;
       movePlayer(1, 0);
       break;
+    case "1":
+      toggleMenu("stats");
+      return;
+    case "2":
+      toggleMenu("equipment");
+      return;
+    case "3":
+      toggleMenu("controls");
+      return;
     default:
       return;
   }
@@ -1118,6 +1142,29 @@ function resizeCanvas() {
   canvas.height = Math.max(360, Math.floor(canvas.width * 0.76));
   updateCamera();
   render();
+}
+
+function toggleMenu(panelName = null) {
+  if (!menuPanel || !menuToggle) {
+    return;
+  }
+  if (!panelName || activePanel === panelName) {
+    activePanel = null;
+    menuPanel.classList.add("hidden");
+    menuToggle.classList.remove("active");
+    menuButtons.forEach((button) => button.classList.remove("active"));
+    return;
+  }
+
+  activePanel = panelName;
+  menuPanel.classList.remove("hidden");
+  menuToggle.classList.add("active");
+  menuButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.menu === panelName);
+  });
+  menuPanel.querySelectorAll(".panel-section").forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.panel !== panelName);
+  });
 }
 
 function handleMouseDown(event) {
@@ -1171,6 +1218,13 @@ restartButton.addEventListener("click", () => {
   equipped = { weapon: null, armor: null, accessory: null };
   createDungeon();
   render();
+});
+menuToggle?.addEventListener("click", () =>
+  toggleMenu(activePanel ? null : "stats")
+);
+menuClose?.addEventListener("click", () => toggleMenu());
+menuButtons.forEach((button) => {
+  button.addEventListener("click", () => toggleMenu(button.dataset.menu));
 });
 inventoryList.addEventListener("click", (event) => {
   const button = event.target.closest("button");
