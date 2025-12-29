@@ -3,11 +3,16 @@ const statusText = document.getElementById("status");
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 32;
-const MAP_WIDTH = 25;
-const MAP_HEIGHT = 19;
-const MAX_ROOMS = 8;
+const MAP_WIDTH = 60;
+const MAP_HEIGHT = 45;
+const MAX_ROOMS = 16;
 const ROOM_MIN_SIZE = 4;
 const ROOM_MAX_SIZE = 7;
+const BASE_CANVAS_WIDTH = 800;
+const BASE_CANVAS_HEIGHT = 608;
+const ZOOM_MIN = 0.75;
+const ZOOM_MAX = 2.5;
+const ZOOM_STEP = 0.1;
 
 const TILE = {
   WALL: 0,
@@ -35,6 +40,8 @@ let player = { x: 0, y: 0 };
 let exit = { x: 0, y: 0 };
 let playerFrameIndex = 0;
 let playerFacing = 1;
+let camera = { x: 0, y: 0 };
+let zoom = 1;
 
 const palette = {
   floor: "#2b3142",
@@ -86,6 +93,7 @@ function createDungeon() {
   rooms.length = 0;
   playerFrameIndex = 0;
   playerFacing = 1;
+  zoom = 1;
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -138,6 +146,7 @@ function createDungeon() {
   };
 
   dungeon[exit.y][exit.x] = TILE.EXIT;
+  updateCamera();
 }
 
 function isWalkable(x, y) {
@@ -164,6 +173,7 @@ function movePlayer(dx, dy) {
 
   player = { x: nextX, y: nextY };
   playerFrameIndex = (playerFrameIndex + 1) % 4;
+  updateCamera();
   statusText.textContent = "Explore the dungeon.";
 }
 
@@ -256,8 +266,18 @@ function drawPlayer() {
   ctx.restore();
 }
 
+function updateCamera() {
+  camera = {
+    x: player.x * TILE_SIZE - canvas.width / (2 * zoom) + TILE_SIZE / 2,
+    y: player.y * TILE_SIZE - canvas.height / (2 * zoom) + TILE_SIZE / 2,
+  };
+}
+
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.scale(zoom, zoom);
+  ctx.translate(-camera.x, -camera.y);
 
   for (let y = 0; y < MAP_HEIGHT; y += 1) {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
@@ -270,6 +290,7 @@ function render() {
   }
 
   drawPlayer();
+  ctx.restore();
 }
 
 function handleKeydown(event) {
@@ -303,6 +324,28 @@ function handleKeydown(event) {
   render();
 }
 
+function handleWheel(event) {
+  event.preventDefault();
+  const direction = Math.sign(event.deltaY);
+  if (direction === 0) {
+    return;
+  }
+  zoom = Math.min(
+    ZOOM_MAX,
+    Math.max(ZOOM_MIN, zoom + (direction > 0 ? -ZOOM_STEP : ZOOM_STEP))
+  );
+  updateCamera();
+  render();
+}
+
+function resizeCanvas() {
+  const width = Math.min(window.innerWidth - 48, BASE_CANVAS_WIDTH);
+  canvas.width = Math.max(480, width);
+  canvas.height = Math.max(360, Math.floor(canvas.width * 0.76));
+  updateCamera();
+  render();
+}
+
 createDungeon();
 render();
 
@@ -311,3 +354,7 @@ Object.values(sprites).forEach((img) => {
 });
 
 window.addEventListener("keydown", handleKeydown);
+window.addEventListener("resize", resizeCanvas);
+canvas.addEventListener("wheel", handleWheel, { passive: false });
+
+resizeCanvas();
