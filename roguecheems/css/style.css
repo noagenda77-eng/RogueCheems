@@ -186,9 +186,6 @@ canvas {
   font-size: 0.95rem;
 }
 
-.equipment-slot strong {
-  color: #ffe066;
-}
 
 .loot-card {
   min-width: 260px;
