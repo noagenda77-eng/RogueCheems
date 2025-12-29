@@ -1,6 +1,8 @@
 const canvas = document.getElementById("game");
 const statusText = document.getElementById("status");
 const playerHpText = document.getElementById("player-hp");
+const gameOverOverlay = document.getElementById("game-over");
+const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 32;
@@ -49,6 +51,10 @@ let floorVariants = [];
 let wallVariants = [];
 let playerHp = 0;
 let playerMaxHp = 0;
+let damageFloats = [];
+let isGameOver = false;
+const playerDamageRange = { min: 1, max: 3 };
+const enemyDamageRange = { min: 1, max: 2 };
 
 const palette = {
   floor: "#2b3142",
@@ -109,6 +115,9 @@ function createDungeon() {
   wallVariants = Array.from({ length: MAP_HEIGHT }, () =>
     Array.from({ length: MAP_WIDTH }, () => null)
   );
+  damageFloats = [];
+  isGameOver = false;
+  gameOverOverlay.classList.add("hidden");
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -180,6 +189,9 @@ function isOccupiedByEnemy(x, y) {
 }
 
 function movePlayer(dx, dy) {
+  if (isGameOver) {
+    return;
+  }
   const nextX = player.x + dx;
   const nextY = player.y + dy;
 
@@ -339,6 +351,18 @@ function drawEnemyHealthBars() {
     ctx.fillRect(pixelX, pixelY, barWidth, barHeight);
     ctx.fillStyle = "#e03131";
     ctx.fillRect(pixelX, pixelY, barWidth * ratio, barHeight);
+  });
+}
+
+function drawDamageFloats() {
+  damageFloats.forEach((float) => {
+    ctx.fillStyle = float.color;
+    ctx.globalAlpha = float.alpha;
+    ctx.font = "bold 14px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(float.text, float.x, float.y);
+    ctx.globalAlpha = 1;
   });
 }
 
@@ -580,6 +604,41 @@ function moveEnemies() {
 
     moveEnemyRandom(enemy);
   });
+
+  enemies.forEach((enemy) => {
+    const distance =
+      Math.abs(enemy.x - player.x) + Math.abs(enemy.y - player.y);
+    if (distance === 1) {
+      attackPlayer(enemy);
+    }
+  });
+}
+
+function rollDamage(range) {
+  return randomInt(range.min, range.max);
+}
+
+function addDamageFloat(x, y, amount, color) {
+  damageFloats.push({
+    x: x * TILE_SIZE + TILE_SIZE / 2,
+    y: y * TILE_SIZE - 4,
+    text: `-${amount}`,
+    color,
+    alpha: 1,
+    life: 0.9,
+    speed: 14,
+  });
+}
+
+function updateDamageFloats(deltaSeconds) {
+  damageFloats = damageFloats
+    .map((float) => ({
+      ...float,
+      y: float.y - float.speed * deltaSeconds,
+      life: float.life - deltaSeconds,
+      alpha: Math.max(0, float.life),
+    }))
+    .filter((float) => float.life > 0);
 }
 
 function attackEnemyAt(x, y) {
@@ -587,23 +646,41 @@ function attackEnemyAt(x, y) {
   if (!enemy) {
     return;
   }
-  enemy.hp -= 1;
-  playerHp = Math.max(0, playerHp - 1);
+  const playerDamage = rollDamage(playerDamageRange);
+  const enemyDamage = rollDamage(enemyDamageRange);
+  enemy.hp -= playerDamage;
+  playerHp = Math.max(0, playerHp - enemyDamage);
   enemy.aggro = true;
   statusText.textContent = "You trade blows with an enemy.";
+  addDamageFloat(enemy.x, enemy.y, playerDamage, "#f03e3e");
+  addDamageFloat(player.x, player.y, enemyDamage, "#ff6b6b");
   if (enemy.hp <= 0) {
     enemies = enemies.filter((target) => target !== enemy);
     statusText.textContent = "You defeated an enemy.";
+  }
+  if (playerHp <= 0) {
+    triggerGameOver();
   }
   updateHud();
   render();
 }
 
 function attackPlayer(enemy) {
-  playerHp = Math.max(0, playerHp - 1);
+  const damage = rollDamage(enemyDamageRange);
+  playerHp = Math.max(0, playerHp - damage);
   enemy.aggro = true;
   statusText.textContent = "An enemy strikes you!";
+  addDamageFloat(player.x, player.y, damage, "#ff6b6b");
+  if (playerHp <= 0) {
+    triggerGameOver();
+  }
   updateHud();
+}
+
+function triggerGameOver() {
+  isGameOver = true;
+  statusText.textContent = "You have fallen.";
+  gameOverOverlay.classList.remove("hidden");
 }
 
 function updateCamera() {
@@ -628,6 +705,7 @@ function render() {
   drawEnemies();
   drawPlayer();
   drawEnemyHealthBars();
+  drawDamageFloats();
   ctx.restore();
 }
 
@@ -692,7 +770,23 @@ Object.values(sprites).forEach((img) => {
 });
 
 window.addEventListener("keydown", handleKeydown);
+restartButton.addEventListener("click", () => {
+  playerHp = playerMaxHp;
+  createDungeon();
+  render();
+});
 window.addEventListener("resize", resizeCanvas);
 canvas.addEventListener("wheel", handleWheel, { passive: false });
 
 resizeCanvas();
+
+let lastTimestamp = performance.now();
+function tick(timestamp) {
+  const deltaSeconds = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+  lastTimestamp = timestamp;
+  updateDamageFloats(deltaSeconds);
+  render();
+  requestAnimationFrame(tick);
+}
+
+requestAnimationFrame(tick);

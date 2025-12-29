@@ -64,6 +64,47 @@ body {
   gap: 12px;
 }
 
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 13, 18, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay-card {
+  background: #141a2b;
+  border: 1px solid #3a455f;
+  border-radius: 12px;
+  padding: 24px 32px;
+  text-align: center;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+}
+
+.overlay-card h2 {
+  margin-top: 0;
+}
+
+.overlay-card button {
+  background: #f08c00;
+  color: #0b0d12;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.overlay-card button:hover {
+  filter: brightness(1.05);
+}
+
 canvas {
   width: 100%;
   max-width: 800px;
