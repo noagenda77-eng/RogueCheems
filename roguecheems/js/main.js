@@ -161,12 +161,21 @@ function isWalkable(x, y) {
   return dungeon[y][x] !== TILE.WALL;
 }
 
+function isOccupiedByEnemy(x, y) {
+  return enemies.some((enemy) => enemy.x === x && enemy.y === y);
+}
+
 function movePlayer(dx, dy) {
   const nextX = player.x + dx;
   const nextY = player.y + dy;
 
   if (!isWalkable(nextX, nextY)) {
     statusText.textContent = "A wall blocks your path.";
+    return;
+  }
+
+  if (isOccupiedByEnemy(nextX, nextY)) {
+    statusText.textContent = "An enemy blocks your path.";
     return;
   }
 
@@ -358,6 +367,9 @@ function moveEnemyRandom(enemy) {
     if (!isWalkable(nextX, nextY)) {
       continue;
     }
+    if (isOccupiedByEnemy(nextX, nextY) || (player.x === nextX && player.y === nextY)) {
+      continue;
+    }
     if (!isWithinLeash(enemy, nextX, nextY)) {
       continue;
     }
@@ -378,6 +390,9 @@ function moveEnemyToward(enemy, target) {
     const nextX = enemy.x + option.dx;
     const nextY = enemy.y + option.dy;
     if (!isWalkable(nextX, nextY)) {
+      continue;
+    }
+    if (isOccupiedByEnemy(nextX, nextY) || (player.x === nextX && player.y === nextY)) {
       continue;
     }
     if (!isWithinLeash(enemy, nextX, nextY)) {
