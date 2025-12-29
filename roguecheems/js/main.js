@@ -232,10 +232,43 @@ function drawSprite(img, x, y, fallbackColor, label) {
   ctx.fillText(label, pixelX + TILE_SIZE / 2, pixelY + TILE_SIZE / 2);
 }
 
+function drawEnemy(enemy) {
+  const img = sprites.enemy;
+  const pixelX = enemy.x * TILE_SIZE;
+  const pixelY = enemy.y * TILE_SIZE;
+
+  if (img.complete && img.naturalWidth > 0) {
+    const frameWidth = img.naturalWidth / 2;
+    const frameHeight = img.naturalHeight / 2;
+    const frameX = (enemy.frameIndex % 2) * frameWidth;
+    const frameY = Math.floor(enemy.frameIndex / 2) * frameHeight;
+    ctx.save();
+    if (enemy.facing === -1) {
+      ctx.translate(pixelX + TILE_SIZE, pixelY);
+      ctx.scale(-1, 1);
+    } else {
+      ctx.translate(pixelX, pixelY);
+    }
+    ctx.drawImage(
+      img,
+      frameX,
+      frameY,
+      frameWidth,
+      frameHeight,
+      0,
+      0,
+      TILE_SIZE,
+      TILE_SIZE
+    );
+    ctx.restore();
+    return;
+  }
+
+  drawSprite(img, enemy.x, enemy.y, palette.enemy, "!");
+}
+
 function drawEnemies() {
-  enemies.forEach((enemy) => {
-    drawSprite(sprites.enemy, enemy.x, enemy.y, palette.enemy, "!");
-  });
+  enemies.forEach((enemy) => drawEnemy(enemy));
 }
 
 function drawPlayer() {
@@ -315,6 +348,8 @@ function spawnEnemies() {
       spawnY: position.y,
       leash: randomInt(4, 7),
       aggro: false,
+      frameIndex: 0,
+      facing: 1,
     });
   }
 }
@@ -373,8 +408,12 @@ function moveEnemyRandom(enemy) {
     if (!isWithinLeash(enemy, nextX, nextY)) {
       continue;
     }
+    if (dir.dx !== 0) {
+      enemy.facing = dir.dx > 0 ? -1 : 1;
+    }
     enemy.x = nextX;
     enemy.y = nextY;
+    enemy.frameIndex = (enemy.frameIndex + 1) % 4;
     return;
   }
 }
@@ -398,8 +437,12 @@ function moveEnemyToward(enemy, target) {
     if (!isWithinLeash(enemy, nextX, nextY)) {
       continue;
     }
+    if (option.dx !== 0) {
+      enemy.facing = option.dx > 0 ? -1 : 1;
+    }
     enemy.x = nextX;
     enemy.y = nextY;
+    enemy.frameIndex = (enemy.frameIndex + 1) % 4;
     return;
   }
 
