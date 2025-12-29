@@ -1,5 +1,6 @@
 const canvas = document.getElementById("game");
 const statusText = document.getElementById("status");
+const playerHpText = document.getElementById("player-hp");
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 32;
@@ -46,6 +47,8 @@ let zoom = 1;
 let enemies = [];
 let floorVariants = [];
 let wallVariants = [];
+let playerHp = 0;
+let playerMaxHp = 0;
 
 const palette = {
   floor: "#2b3142",
@@ -162,6 +165,7 @@ function createDungeon() {
   assignWallVariants();
   spawnEnemies();
   updateCamera();
+  updateHud();
 }
 
 function isWalkable(x, y) {
@@ -185,7 +189,7 @@ function movePlayer(dx, dy) {
   }
 
   if (isOccupiedByEnemy(nextX, nextY)) {
-    statusText.textContent = "An enemy blocks your path.";
+    attackEnemyAt(nextX, nextY);
     return;
   }
 
@@ -324,6 +328,24 @@ function drawPlayer() {
   ctx.restore();
 }
 
+function drawEnemyHealthBars() {
+  enemies.forEach((enemy) => {
+    const barWidth = TILE_SIZE - 6;
+    const barHeight = 4;
+    const pixelX = enemy.x * TILE_SIZE + 3;
+    const pixelY = enemy.y * TILE_SIZE - 6;
+    const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+    ctx.fillStyle = "#0b0d12";
+    ctx.fillRect(pixelX, pixelY, barWidth, barHeight);
+    ctx.fillStyle = "#e03131";
+    ctx.fillRect(pixelX, pixelY, barWidth * ratio, barHeight);
+  });
+}
+
+function updateHud() {
+  playerHpText.textContent = `${playerHp}/${playerMaxHp}`;
+}
+
 function drawFloorTile(x, y) {
   const img = sprites.floor;
   const pixelX = x * TILE_SIZE;
@@ -436,6 +458,8 @@ function spawnEnemies() {
       aggro: false,
       frameIndex: 0,
       facing: 1,
+      hp: 3,
+      maxHp: 3,
     });
   }
 }
@@ -488,8 +512,12 @@ function moveEnemyRandom(enemy) {
     if (!isWalkable(nextX, nextY)) {
       continue;
     }
-    if (isOccupiedByEnemy(nextX, nextY) || (player.x === nextX && player.y === nextY)) {
+    if (isOccupiedByEnemy(nextX, nextY)) {
       continue;
+    }
+    if (player.x === nextX && player.y === nextY) {
+      attackPlayer(enemy);
+      return;
     }
     if (!isWithinLeash(enemy, nextX, nextY)) {
       continue;
@@ -517,8 +545,12 @@ function moveEnemyToward(enemy, target) {
     if (!isWalkable(nextX, nextY)) {
       continue;
     }
-    if (isOccupiedByEnemy(nextX, nextY) || (player.x === nextX && player.y === nextY)) {
+    if (isOccupiedByEnemy(nextX, nextY)) {
       continue;
+    }
+    if (player.x === nextX && player.y === nextY) {
+      attackPlayer(enemy);
+      return;
     }
     if (!isWithinLeash(enemy, nextX, nextY)) {
       continue;
@@ -550,6 +582,30 @@ function moveEnemies() {
   });
 }
 
+function attackEnemyAt(x, y) {
+  const enemy = enemies.find((target) => target.x === x && target.y === y);
+  if (!enemy) {
+    return;
+  }
+  enemy.hp -= 1;
+  playerHp = Math.max(0, playerHp - 1);
+  enemy.aggro = true;
+  statusText.textContent = "You trade blows with an enemy.";
+  if (enemy.hp <= 0) {
+    enemies = enemies.filter((target) => target !== enemy);
+    statusText.textContent = "You defeated an enemy.";
+  }
+  updateHud();
+  render();
+}
+
+function attackPlayer(enemy) {
+  playerHp = Math.max(0, playerHp - 1);
+  enemy.aggro = true;
+  statusText.textContent = "An enemy strikes you!";
+  updateHud();
+}
+
 function updateCamera() {
   camera = {
     x: player.x * TILE_SIZE - canvas.width / (2 * zoom) + TILE_SIZE / 2,
@@ -571,6 +627,7 @@ function render() {
 
   drawEnemies();
   drawPlayer();
+  drawEnemyHealthBars();
   ctx.restore();
 }
 
@@ -625,6 +682,8 @@ function resizeCanvas() {
   render();
 }
 
+playerMaxHp = 10;
+playerHp = playerMaxHp;
 createDungeon();
 render();
 
