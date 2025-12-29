@@ -21,6 +21,7 @@ const lootOverlay = document.getElementById("loot-overlay");
 const lootDescription = document.getElementById("loot-description");
 const lootEquipButton = document.getElementById("loot-equip");
 const lootStoreButton = document.getElementById("loot-store");
+const lootIgnoreButton = document.getElementById("loot-ignore");
 const gameOverOverlay = document.getElementById("game-over");
 const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
@@ -1256,6 +1257,25 @@ function handleMouseUp(event) {
   render();
 }
 
+function handleCanvasClick(event) {
+  if (isGameOver || isLootPromptOpen) {
+    return;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const clickX = (event.clientX - rect.left) / zoom + camera.x;
+  const clickY = (event.clientY - rect.top) / zoom + camera.y;
+  const targetX = Math.floor(clickX / TILE_SIZE);
+  const targetY = Math.floor(clickY / TILE_SIZE);
+
+  const dx = targetX - player.x;
+  const dy = targetY - player.y;
+  if (Math.abs(dx) + Math.abs(dy) !== 1) {
+    return;
+  }
+  movePlayer(Math.sign(dx), Math.sign(dy));
+  render();
+}
+
 playerMaxHp = 10;
 playerHp = playerMaxHp;
 createDungeon();
@@ -1296,6 +1316,14 @@ lootStoreButton?.addEventListener("click", () => {
   closeLootPrompt();
   updateHud();
 });
+lootIgnoreButton?.addEventListener("click", () => {
+  if (!pendingLoot) {
+    return;
+  }
+  statusText.textContent = `Left ${pendingLoot.name} behind.`;
+  closeLootPrompt();
+  updateHud();
+});
 menuToggle?.addEventListener("click", () =>
   toggleMenu(activePanel ? null : "stats")
 );
@@ -1319,6 +1347,7 @@ inventoryList.addEventListener("click", (event) => {
 });
 window.addEventListener("resize", resizeCanvas);
 canvas.addEventListener("wheel", handleWheel, { passive: false });
+canvas.addEventListener("click", handleCanvasClick);
 canvas.addEventListener("mousedown", handleMouseDown);
 window.addEventListener("mousemove", handleMouseMove);
 window.addEventListener("mouseup", handleMouseUp);
