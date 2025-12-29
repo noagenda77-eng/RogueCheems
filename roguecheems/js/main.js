@@ -305,6 +305,7 @@ function spawnEnemies() {
       spawnX: position.x,
       spawnY: position.y,
       leash: randomInt(4, 7),
+      aggro: false,
     });
   }
 }
@@ -334,6 +335,9 @@ function hasLineOfSight(source, target) {
 }
 
 function isWithinLeash(enemy, x, y) {
+  if (enemy.aggro) {
+    return true;
+  }
   return (
     Math.abs(x - enemy.spawnX) + Math.abs(y - enemy.spawnY) <= enemy.leash
   );
@@ -389,12 +393,15 @@ function moveEnemyToward(enemy, target) {
 
 function moveEnemies() {
   enemies.forEach((enemy) => {
-    const distance =
-      Math.abs(enemy.x - player.x) + Math.abs(enemy.y - player.y);
-    if (distance <= enemy.leash && hasLineOfSight(enemy, player)) {
+    if (hasLineOfSight(enemy, player)) {
+      enemy.aggro = true;
+    }
+
+    if (enemy.aggro) {
       moveEnemyToward(enemy, player);
       return;
     }
+
     moveEnemyRandom(enemy);
   });
 }
