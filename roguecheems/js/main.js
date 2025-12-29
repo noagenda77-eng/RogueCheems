@@ -45,6 +45,7 @@ let camera = { x: 0, y: 0 };
 let zoom = 1;
 let enemies = [];
 let floorVariants = [];
+let wallVariants = [];
 
 const palette = {
   floor: "#2b3142",
@@ -102,6 +103,9 @@ function createDungeon() {
   floorVariants = Array.from({ length: MAP_HEIGHT }, () =>
     Array.from({ length: MAP_WIDTH }, () => null)
   );
+  wallVariants = Array.from({ length: MAP_HEIGHT }, () =>
+    Array.from({ length: MAP_WIDTH }, () => null)
+  );
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -155,6 +159,7 @@ function createDungeon() {
 
   dungeon[exit.y][exit.x] = TILE.EXIT;
   assignFloorVariants();
+  assignWallVariants();
   spawnEnemies();
   updateCamera();
 }
@@ -199,7 +204,7 @@ function movePlayer(dx, dy) {
 
 function drawTile(x, y, type) {
   if (type === TILE.WALL) {
-    drawSprite(sprites.wall, x, y, palette.wall, "#");
+    drawWallTile(x, y);
     return;
   }
 
@@ -349,12 +354,53 @@ function drawFloorTile(x, y) {
   drawSprite(img, x, y, palette.floor, ".");
 }
 
+function drawWallTile(x, y) {
+  const img = sprites.wall;
+  const pixelX = x * TILE_SIZE;
+  const pixelY = y * TILE_SIZE;
+  const variant = wallVariants[y][x] ?? 0;
+
+  if (img.complete && img.naturalWidth > 0) {
+    const columns = 3;
+    const rows = 2;
+    const frameWidth = img.naturalWidth / columns;
+    const frameHeight = img.naturalHeight / rows;
+    const frameX = (variant % columns) * frameWidth;
+    const frameY = Math.floor(variant / columns) * frameHeight;
+    ctx.drawImage(
+      img,
+      frameX,
+      frameY,
+      frameWidth,
+      frameHeight,
+      pixelX,
+      pixelY,
+      TILE_SIZE,
+      TILE_SIZE
+    );
+    return;
+  }
+
+  drawSprite(img, x, y, palette.wall, "#");
+}
+
 function assignFloorVariants() {
   const maxVariants = 8;
   for (let y = 0; y < MAP_HEIGHT; y += 1) {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
       if (dungeon[y][x] === TILE.FLOOR) {
         floorVariants[y][x] = randomInt(0, maxVariants - 1);
+      }
+    }
+  }
+}
+
+function assignWallVariants() {
+  const maxVariants = 6;
+  for (let y = 0; y < MAP_HEIGHT; y += 1) {
+    for (let x = 0; x < MAP_WIDTH; x += 1) {
+      if (dungeon[y][x] === TILE.WALL) {
+        wallVariants[y][x] = randomInt(0, maxVariants - 1);
       }
     }
   }
