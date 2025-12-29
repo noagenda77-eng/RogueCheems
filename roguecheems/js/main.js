@@ -25,6 +25,7 @@ const spritePaths = {
   wall: "assets/sprites/wall.png",
   player: "assets/sprites/player.png",
   exit: "assets/sprites/exit.png",
+  enemy: "assets/sprites/enemy.png",
 };
 
 const sprites = Object.fromEntries(
@@ -42,12 +43,14 @@ let playerFrameIndex = 0;
 let playerFacing = 1;
 let camera = { x: 0, y: 0 };
 let zoom = 1;
+let enemies = [];
 
 const palette = {
   floor: "#2b3142",
   wall: "#0f121b",
   exit: "#2f9e44",
   player: "#f08c00",
+  enemy: "#e03131",
   text: "#fef9c3",
 };
 
@@ -94,6 +97,7 @@ function createDungeon() {
   playerFrameIndex = 0;
   playerFacing = 1;
   zoom = 1;
+  enemies = [];
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -146,6 +150,7 @@ function createDungeon() {
   };
 
   dungeon[exit.y][exit.x] = TILE.EXIT;
+  spawnEnemies();
   updateCamera();
 }
 
@@ -173,6 +178,7 @@ function movePlayer(dx, dy) {
 
   player = { x: nextX, y: nextY };
   playerFrameIndex = (playerFrameIndex + 1) % 4;
+  moveEnemies();
   updateCamera();
   statusText.textContent = "Explore the dungeon.";
 }
@@ -215,6 +221,12 @@ function drawSprite(img, x, y, fallbackColor, label) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(label, pixelX + TILE_SIZE / 2, pixelY + TILE_SIZE / 2);
+}
+
+function drawEnemies() {
+  enemies.forEach((enemy) => {
+    drawSprite(sprites.enemy, enemy.x, enemy.y, palette.enemy, "!");
+  });
 }
 
 function drawPlayer() {
@@ -266,6 +278,127 @@ function drawPlayer() {
   ctx.restore();
 }
 
+function randomFloorTile() {
+  while (true) {
+    const room = rooms[randomInt(0, rooms.length - 1)];
+    const x = randomInt(room.x, room.x + room.width - 1);
+    const y = randomInt(room.y, room.y + room.height - 1);
+    if (dungeon[y][x] === TILE.FLOOR) {
+      return { x, y };
+    }
+  }
+}
+
+function spawnEnemies() {
+  const enemyCount = Math.max(4, Math.floor(rooms.length / 2));
+  const usedPositions = new Set([`${player.x},${player.y}`, `${exit.x},${exit.y}`]);
+
+  for (let i = 0; i < enemyCount; i += 1) {
+    let position = randomFloorTile();
+    while (usedPositions.has(`${position.x},${position.y}`)) {
+      position = randomFloorTile();
+    }
+    usedPositions.add(`${position.x},${position.y}`);
+    enemies.push({
+      x: position.x,
+      y: position.y,
+      spawnX: position.x,
+      spawnY: position.y,
+      leash: randomInt(4, 7),
+    });
+  }
+}
+
+function hasLineOfSight(source, target) {
+  if (source.x === target.x) {
+    const step = source.y < target.y ? 1 : -1;
+    for (let y = source.y + step; y !== target.y; y += step) {
+      if (dungeon[y][source.x] === TILE.WALL) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (source.y === target.y) {
+    const step = source.x < target.x ? 1 : -1;
+    for (let x = source.x + step; x !== target.x; x += step) {
+      if (dungeon[source.y][x] === TILE.WALL) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function isWithinLeash(enemy, x, y) {
+  return (
+    Math.abs(x - enemy.spawnX) + Math.abs(y - enemy.spawnY) <= enemy.leash
+  );
+}
+
+function moveEnemyRandom(enemy) {
+  const directions = [
+    { dx: 0, dy: -1 },
+    { dx: 0, dy: 1 },
+    { dx: -1, dy: 0 },
+    { dx: 1, dy: 0 },
+  ];
+  const shuffled = directions.sort(() => Math.random() - 0.5);
+
+  for (const dir of shuffled) {
+    const nextX = enemy.x + dir.dx;
+    const nextY = enemy.y + dir.dy;
+    if (!isWalkable(nextX, nextY)) {
+      continue;
+    }
+    if (!isWithinLeash(enemy, nextX, nextY)) {
+      continue;
+    }
+    enemy.x = nextX;
+    enemy.y = nextY;
+    return;
+  }
+}
+
+function moveEnemyToward(enemy, target) {
+  const dx = Math.sign(target.x - enemy.x);
+  const dy = Math.sign(target.y - enemy.y);
+  const options = Math.abs(target.x - enemy.x) >= Math.abs(target.y - enemy.y)
+    ? [{ dx, dy: 0 }, { dx: 0, dy }]
+    : [{ dx: 0, dy }, { dx, dy: 0 }];
+
+  for (const option of options) {
+    const nextX = enemy.x + option.dx;
+    const nextY = enemy.y + option.dy;
+    if (!isWalkable(nextX, nextY)) {
+      continue;
+    }
+    if (!isWithinLeash(enemy, nextX, nextY)) {
+      continue;
+    }
+    enemy.x = nextX;
+    enemy.y = nextY;
+    return;
+  }
+
+  moveEnemyRandom(enemy);
+}
+
+function moveEnemies() {
+  enemies.forEach((enemy) => {
+    const distance =
+      Math.abs(enemy.x - player.x) + Math.abs(enemy.y - player.y);
+    if (distance <= enemy.leash && hasLineOfSight(enemy, player)) {
+      moveEnemyToward(enemy, player);
+      return;
+    }
+    moveEnemyRandom(enemy);
+  });
+}
+
 function updateCamera() {
   camera = {
     x: player.x * TILE_SIZE - canvas.width / (2 * zoom) + TILE_SIZE / 2,
@@ -289,6 +422,7 @@ function render() {
     }
   }
 
+  drawEnemies();
   drawPlayer();
   ctx.restore();
 }
@@ -330,10 +464,8 @@ function handleWheel(event) {
   if (direction === 0) {
     return;
   }
-  zoom = Math.min(
-    ZOOM_MAX,
-    Math.max(ZOOM_MIN, zoom + (direction > 0 ? -ZOOM_STEP : ZOOM_STEP))
-  );
+  const multiplier = direction > 0 ? 1 - ZOOM_STEP : 1 + ZOOM_STEP;
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * multiplier));
   updateCamera();
   render();
 }
