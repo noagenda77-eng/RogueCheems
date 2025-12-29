@@ -4,6 +4,13 @@ const playerHpText = document.getElementById("player-hp");
 const floorLevelText = document.getElementById("floor-level");
 const playerLevelText = document.getElementById("player-level");
 const playerXpText = document.getElementById("player-xp");
+const statDamageText = document.getElementById("stat-damage");
+const statCritText = document.getElementById("stat-crit");
+const statRegenText = document.getElementById("stat-regen");
+const equipWeaponText = document.getElementById("equip-weapon");
+const equipArmorText = document.getElementById("equip-armor");
+const equipAccessoryText = document.getElementById("equip-accessory");
+const inventoryList = document.getElementById("inventory-list");
 const gameOverOverlay = document.getElementById("game-over");
 const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
@@ -34,6 +41,7 @@ const spritePaths = {
   exit: "assets/sprites/exit.png",
   enemy: "assets/sprites/enemy.png",
   cheeseburger: "assets/sprites/cheeseburger.png",
+  chest: "assets/sprites/chest.png",
 };
 
 const sprites = Object.fromEntries(
@@ -70,6 +78,20 @@ let discoveredTiles = [];
 let isPanning = false;
 let panOffset = { x: 0, y: 0 };
 let panStart = { x: 0, y: 0 };
+let chests = [];
+let inventory = [];
+let equipped = {
+  weapon: null,
+  armor: null,
+  accessory: null,
+};
+const rarities = [
+  { name: "common", weight: 60, color: "#f1f3f5" },
+  { name: "rare", weight: 25, color: "#4dabf7" },
+  { name: "epic", weight: 10, color: "#f06595" },
+  { name: "legendary", weight: 5, color: "#f59f00" },
+];
+const equipmentSlots = ["weapon", "armor", "accessory"];
 
 const palette = {
   floor: "#2b3142",
@@ -125,6 +147,7 @@ function createDungeon() {
   zoom = 1;
   enemies = [];
   cheeseburgers = [];
+  chests = [];
   floorVariants = Array.from({ length: MAP_HEIGHT }, () =>
     Array.from({ length: MAP_WIDTH }, () => null)
   );
@@ -196,6 +219,7 @@ function createDungeon() {
   assignWallVariants();
   spawnEnemies();
   spawnCheeseburgers();
+  spawnChests();
   updateCamera();
   updateHud();
 }
@@ -228,6 +252,15 @@ function movePlayer(dx, dy) {
     return;
   }
 
+  if (isChestAt(nextX, nextY)) {
+    openChestAt(nextX, nextY);
+    moveEnemies();
+    applyRegen();
+    updateCamera();
+    updateHud();
+    return;
+  }
+
   if (nextX === exit.x && nextY === exit.y) {
     floorLevel += 1;
     createDungeon();
@@ -243,7 +276,9 @@ function movePlayer(dx, dy) {
   }
   statusText.textContent = statusMessage;
   moveEnemies();
+  applyRegen();
   updateCamera();
+  updateHud();
 }
 
 function drawTile(x, y, type) {
@@ -387,6 +422,21 @@ function drawCheeseburgers() {
   });
 }
 
+function drawChests() {
+  chests.forEach((chest) => {
+    if (!isVisible(chest.x, chest.y)) {
+      return;
+    }
+    drawSprite(
+      sprites.chest,
+      chest.x,
+      chest.y,
+      "#fab005",
+      "T"
+    );
+  });
+}
+
 function drawEnemyHealthBars() {
   enemies.forEach((enemy) => {
     if (!isVisible(enemy.x, enemy.y)) {
@@ -421,6 +471,13 @@ function updateHud() {
   floorLevelText.textContent = `${floorLevel}`;
   playerLevelText.textContent = `${playerLevel}`;
   playerXpText.textContent = `${playerXp}/${playerXpToNext}`;
+  statDamageText.textContent = formatDamageRange(getPlayerDamageRange());
+  statCritText.textContent = `${Math.round(getPlayerCritChance() * 100)}%`;
+  statRegenText.textContent = `${getPlayerRegen()}`;
+  equipWeaponText.textContent = equipped.weapon?.name ?? "None";
+  equipArmorText.textContent = equipped.armor?.name ?? "None";
+  equipAccessoryText.textContent = equipped.accessory?.name ?? "None";
+  renderInventory();
 }
 
 function drawFloorTile(x, y) {
@@ -552,6 +609,7 @@ function spawnCheeseburgers() {
     `${exit.x},${exit.y}`,
   ]);
   enemies.forEach((enemy) => usedPositions.add(`${enemy.x},${enemy.y}`));
+  chests.forEach((chest) => usedPositions.add(`${chest.x},${chest.y}`));
 
   for (let i = 0; i < cheeseburgerCount; i += 1) {
     let position = randomFloorTile();
@@ -560,6 +618,27 @@ function spawnCheeseburgers() {
     }
     usedPositions.add(`${position.x},${position.y}`);
     cheeseburgers.push({ x: position.x, y: position.y, heal: 4 });
+  }
+}
+
+function spawnChests() {
+  const chestCount = Math.max(2, Math.floor(rooms.length / 4));
+  const usedPositions = new Set([
+    `${player.x},${player.y}`,
+    `${exit.x},${exit.y}`,
+  ]);
+  enemies.forEach((enemy) => usedPositions.add(`${enemy.x},${enemy.y}`));
+  cheeseburgers.forEach((cheeseburger) =>
+    usedPositions.add(`${cheeseburger.x},${cheeseburger.y}`)
+  );
+
+  for (let i = 0; i < chestCount; i += 1) {
+    let position = randomFloorTile();
+    while (usedPositions.has(`${position.x},${position.y}`)) {
+      position = randomFloorTile();
+    }
+    usedPositions.add(`${position.x},${position.y}`);
+    chests.push({ x: position.x, y: position.y, opened: false });
   }
 }
 
@@ -695,13 +774,34 @@ function rollDamage(range) {
 
 function getPlayerDamageRange() {
   const bonus = Math.floor((playerLevel - 1) / 2);
-  return { min: playerDamageRange.min + bonus, max: playerDamageRange.max + bonus };
+  const gearBonus = getEquipmentStat("damage");
+  return {
+    min: playerDamageRange.min + bonus + gearBonus,
+    max: playerDamageRange.max + bonus + gearBonus,
+  };
 }
 
 function getEnemyDamageRange() {
   const minBonus = Math.floor(floorLevel / 3);
   const maxBonus = Math.floor(floorLevel / 2);
-  return { min: enemyDamageRange.min + minBonus, max: enemyDamageRange.max + maxBonus };
+  return {
+    min: enemyDamageRange.min + minBonus,
+    max: enemyDamageRange.max + maxBonus,
+  };
+}
+
+function getPlayerCritChance() {
+  const baseChance = 0.05;
+  return baseChance + getEquipmentStat("crit");
+}
+
+function getPlayerRegen() {
+  return getEquipmentStat("regen");
+}
+
+function formatDamageRange(range) {
+  return `${range.min}-${range.max}`;
+}
 }
 
 function addDamageFloat(x, y, amount, color) {
@@ -734,11 +834,14 @@ function attackEnemyAt(x, y) {
   }
   const playerDamage = rollDamage(getPlayerDamageRange());
   const enemyDamage = rollDamage(getEnemyDamageRange());
-  enemy.hp -= playerDamage;
+  const critChance = getPlayerCritChance();
+  const crit = Math.random() < critChance;
+  const finalPlayerDamage = crit ? playerDamage * 2 : playerDamage;
+  enemy.hp -= finalPlayerDamage;
   playerHp = Math.max(0, playerHp - enemyDamage);
   enemy.aggro = true;
   statusText.textContent = "You trade blows with an enemy.";
-  addDamageFloat(enemy.x, enemy.y, playerDamage, "#f03e3e");
+  addDamageFloat(enemy.x, enemy.y, finalPlayerDamage, "#f03e3e");
   addDamageFloat(player.x, player.y, enemyDamage, "#ff6b6b");
   if (enemy.hp <= 0) {
     enemies = enemies.filter((target) => target !== enemy);
@@ -788,6 +891,102 @@ function pickupCheeseburger(x, y) {
   playerHp = Math.min(playerMaxHp, playerHp + item.heal);
   updateHud();
   return true;
+}
+
+function isChestAt(x, y) {
+  return chests.some((chest) => chest.x === x && chest.y === y);
+}
+
+function openChestAt(x, y) {
+  const index = chests.findIndex((chest) => chest.x === x && chest.y === y);
+  if (index === -1) {
+    return;
+  }
+  const chest = chests.splice(index, 1)[0];
+  const item = generateItem();
+  inventory.push(item);
+  statusText.textContent = `You found ${item.name}.`;
+  updateHud();
+}
+
+function generateItem() {
+  const rarity = rollRarity();
+  const slot = equipmentSlots[randomInt(0, equipmentSlots.length - 1)];
+  const baseName = {
+    weapon: "Blade",
+    armor: "Guard",
+    accessory: "Charm",
+  }[slot];
+  const prefix = {
+    common: "Worn",
+    rare: "Fine",
+    epic: "Fabled",
+    legendary: "Mythic",
+  }[rarity.name];
+  const name = `${prefix} ${baseName}`;
+  const scale = {
+    common: 1,
+    rare: 1.5,
+    epic: 2.2,
+    legendary: 3.2,
+  }[rarity.name];
+  const damage = slot === "weapon" ? Math.round(scale + floorLevel / 3) : 0;
+  const crit = slot === "accessory" ? 0.02 * scale : 0;
+  const regen = slot === "armor" ? Math.round(scale / 1.5) : 0;
+  return {
+    id: `${Date.now()}-${Math.random()}`,
+    slot,
+    name,
+    rarity,
+    stats: { damage, crit, regen },
+  };
+}
+
+function rollRarity() {
+  const total = rarities.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = Math.random() * total;
+  for (const rarity of rarities) {
+    if (roll < rarity.weight) {
+      return rarity;
+    }
+    roll -= rarity.weight;
+  }
+  return rarities[0];
+}
+
+function getEquipmentStat(stat) {
+  return Object.values(equipped).reduce((sum, item) => {
+    if (!item) {
+      return sum;
+    }
+    return sum + (item.stats[stat] ?? 0);
+  }, 0);
+}
+
+function renderInventory() {
+  inventoryList.innerHTML = "";
+  inventory.forEach((item) => {
+    const li = document.createElement("li");
+    li.className = "inventory-item";
+    const label = document.createElement("span");
+    label.textContent = `${item.name} (+${item.stats.damage} dmg, +${Math.round(
+      item.stats.crit * 100
+    )}% crit, +${item.stats.regen} regen)`;
+    label.classList.add(`rarity-${item.rarity.name}`);
+    const button = document.createElement("button");
+    button.textContent = "Equip";
+    button.dataset.itemId = item.id;
+    li.append(label, button);
+    inventoryList.appendChild(li);
+  });
+}
+
+function applyRegen() {
+  const regen = getPlayerRegen();
+  if (regen <= 0) {
+    return;
+  }
+  playerHp = Math.min(playerMaxHp, playerHp + regen);
 }
 
 function triggerGameOver() {
@@ -861,6 +1060,7 @@ function render() {
   }
 
   drawCheeseburgers();
+  drawChests();
   drawEnemies();
   if (isVisible(player.x, player.y)) {
     drawPlayer();
@@ -968,8 +1168,24 @@ restartButton.addEventListener("click", () => {
   playerXpToNext = 5;
   playerMaxHp = 10;
   playerHp = playerMaxHp;
+  inventory = [];
+  equipped = { weapon: null, armor: null, accessory: null };
   createDungeon();
   render();
+});
+inventoryList.addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button) {
+    return;
+  }
+  const itemId = button.dataset.itemId;
+  const item = inventory.find((entry) => entry.id === itemId);
+  if (!item) {
+    return;
+  }
+  equipped[item.slot] = item;
+  statusText.textContent = `Equipped ${item.name}.`;
+  updateHud();
 });
 window.addEventListener("resize", resizeCanvas);
 canvas.addEventListener("wheel", handleWheel, { passive: false });

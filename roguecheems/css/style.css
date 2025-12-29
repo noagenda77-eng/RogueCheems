@@ -63,6 +63,78 @@ body {
   padding: 4px 0;
 }
 
+.equipment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.equipment-slot strong {
+  color: #ffe066;
+}
+
+.inventory {
+  margin-top: 12px;
+}
+
+.inventory-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: #c7d2f0;
+}
+
+.inventory-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inventory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #0f141f;
+  border: 1px solid #222b42;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 0.85rem;
+}
+
+.inventory-item button {
+  background: #2f9e44;
+  color: #0b0d12;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.inventory-item button:hover {
+  filter: brightness(1.05);
+}
+
+.rarity-common {
+  color: #f1f3f5;
+}
+
+.rarity-rare {
+  color: #4dabf7;
+}
+
+.rarity-epic {
+  color: #f06595;
+}
+
+.rarity-legendary {
+  color: #f59f00;
+}
+
 .game {
   display: flex;
   flex-direction: column;
