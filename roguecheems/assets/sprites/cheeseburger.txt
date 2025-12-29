@@ -1,0 +1,2 @@
+Placeholder for cheeseburger sprite.
+Replace with cheeseburger.png.
