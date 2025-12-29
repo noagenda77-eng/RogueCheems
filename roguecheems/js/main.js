@@ -33,6 +33,7 @@ const sprites = Object.fromEntries(
 let dungeon = [];
 let player = { x: 0, y: 0 };
 let exit = { x: 0, y: 0 };
+let playerFrameIndex = 0;
 
 const palette = {
   floor: "#2b3142",
@@ -82,6 +83,7 @@ function createDungeon() {
     Array.from({ length: MAP_WIDTH }, () => TILE.WALL)
   );
   rooms.length = 0;
+  playerFrameIndex = 0;
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -159,6 +161,7 @@ function movePlayer(dx, dy) {
   }
 
   player = { x: nextX, y: nextY };
+  playerFrameIndex = (playerFrameIndex + 1) % 4;
   statusText.textContent = "Explore the dungeon.";
 }
 
@@ -202,6 +205,33 @@ function drawSprite(img, x, y, fallbackColor, label) {
   ctx.fillText(label, pixelX + TILE_SIZE / 2, pixelY + TILE_SIZE / 2);
 }
 
+function drawPlayer() {
+  const img = sprites.player;
+  const pixelX = player.x * TILE_SIZE;
+  const pixelY = player.y * TILE_SIZE;
+
+  if (img.complete && img.naturalWidth > 0) {
+    const frameWidth = img.naturalWidth / 2;
+    const frameHeight = img.naturalHeight / 2;
+    const frameX = (playerFrameIndex % 2) * frameWidth;
+    const frameY = Math.floor(playerFrameIndex / 2) * frameHeight;
+    ctx.drawImage(
+      img,
+      frameX,
+      frameY,
+      frameWidth,
+      frameHeight,
+      pixelX,
+      pixelY,
+      TILE_SIZE,
+      TILE_SIZE
+    );
+    return;
+  }
+
+  drawSprite(img, player.x, player.y, palette.player, "@");
+}
+
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -215,7 +245,7 @@ function render() {
     }
   }
 
-  drawSprite(sprites.player, player.x, player.y, palette.player, "@")
+  drawPlayer();
 }
 
 function handleKeydown(event) {
