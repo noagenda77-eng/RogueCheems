@@ -1,0 +1,2 @@
+Placeholder for player sprite.
+Replace with player.png.

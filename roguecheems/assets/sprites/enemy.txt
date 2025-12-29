@@ -1,0 +1,2 @@
+Placeholder for enemy sprite.
+Replace with enemy.png.
