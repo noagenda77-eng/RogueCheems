@@ -51,6 +51,18 @@ body {
   margin: 8px 0 0;
 }
 
+.stats-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 8px 0 0;
+}
+
+.stats-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
 .game {
   display: flex;
   flex-direction: column;

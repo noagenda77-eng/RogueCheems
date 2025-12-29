@@ -1,6 +1,9 @@
 const canvas = document.getElementById("game");
 const statusText = document.getElementById("status");
 const playerHpText = document.getElementById("player-hp");
+const floorLevelText = document.getElementById("floor-level");
+const playerLevelText = document.getElementById("player-level");
+const playerXpText = document.getElementById("player-xp");
 const gameOverOverlay = document.getElementById("game-over");
 const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
@@ -29,6 +32,7 @@ const spritePaths = {
   player: "assets/sprites/player.png",
   exit: "assets/sprites/exit.png",
   enemy: "assets/sprites/enemy.png",
+  cheeseburger: "assets/sprites/cheeseburger.png",
 };
 
 const sprites = Object.fromEntries(
@@ -55,6 +59,11 @@ let damageFloats = [];
 let isGameOver = false;
 const playerDamageRange = { min: 1, max: 3 };
 const enemyDamageRange = { min: 1, max: 2 };
+let floorLevel = 1;
+let playerLevel = 1;
+let playerXp = 0;
+let playerXpToNext = 5;
+let cheeseburgers = [];
 
 const palette = {
   floor: "#2b3142",
@@ -109,6 +118,7 @@ function createDungeon() {
   playerFacing = 1;
   zoom = 1;
   enemies = [];
+  cheeseburgers = [];
   floorVariants = Array.from({ length: MAP_HEIGHT }, () =>
     Array.from({ length: MAP_WIDTH }, () => null)
   );
@@ -173,6 +183,7 @@ function createDungeon() {
   assignFloorVariants();
   assignWallVariants();
   spawnEnemies();
+  spawnCheeseburgers();
   updateCamera();
   updateHud();
 }
@@ -206,6 +217,7 @@ function movePlayer(dx, dy) {
   }
 
   if (nextX === exit.x && nextY === exit.y) {
+    floorLevel += 1;
     createDungeon();
     statusText.textContent = "You descend to the next floor.";
     return;
@@ -213,9 +225,13 @@ function movePlayer(dx, dy) {
 
   player = { x: nextX, y: nextY };
   playerFrameIndex = (playerFrameIndex + 1) % 4;
+  let statusMessage = "Explore the dungeon.";
+  if (pickupCheeseburger(nextX, nextY)) {
+    statusMessage = "You enjoy a cheeseburger and recover health.";
+  }
+  statusText.textContent = statusMessage;
   moveEnemies();
   updateCamera();
-  statusText.textContent = "Explore the dungeon.";
 }
 
 function drawTile(x, y, type) {
@@ -340,6 +356,18 @@ function drawPlayer() {
   ctx.restore();
 }
 
+function drawCheeseburgers() {
+  cheeseburgers.forEach((cheeseburger) => {
+    drawSprite(
+      sprites.cheeseburger,
+      cheeseburger.x,
+      cheeseburger.y,
+      "#f59f00",
+      "C"
+    );
+  });
+}
+
 function drawEnemyHealthBars() {
   enemies.forEach((enemy) => {
     const barWidth = TILE_SIZE - 6;
@@ -368,6 +396,9 @@ function drawDamageFloats() {
 
 function updateHud() {
   playerHpText.textContent = `${playerHp}/${playerMaxHp}`;
+  floorLevelText.textContent = `${floorLevel}`;
+  playerLevelText.textContent = `${playerLevel}`;
+  playerXpText.textContent = `${playerXp}/${playerXpToNext}`;
 }
 
 function drawFloorTile(x, y) {
@@ -466,6 +497,10 @@ function randomFloorTile() {
 function spawnEnemies() {
   const enemyCount = Math.max(4, Math.floor(rooms.length / 2));
   const usedPositions = new Set([`${player.x},${player.y}`, `${exit.x},${exit.y}`]);
+  const baseHp = 3 + floorLevel;
+  const hpBoost = Math.floor(floorLevel / 2);
+  const enemyHp = baseHp + hpBoost;
+  const enemyMaxHp = enemyHp;
 
   for (let i = 0; i < enemyCount; i += 1) {
     let position = randomFloorTile();
@@ -482,9 +517,27 @@ function spawnEnemies() {
       aggro: false,
       frameIndex: 0,
       facing: 1,
-      hp: 3,
-      maxHp: 3,
+      hp: enemyHp,
+      maxHp: enemyMaxHp,
     });
+  }
+}
+
+function spawnCheeseburgers() {
+  const cheeseburgerCount = Math.max(2, Math.floor(rooms.length / 3));
+  const usedPositions = new Set([
+    `${player.x},${player.y}`,
+    `${exit.x},${exit.y}`,
+  ]);
+  enemies.forEach((enemy) => usedPositions.add(`${enemy.x},${enemy.y}`));
+
+  for (let i = 0; i < cheeseburgerCount; i += 1) {
+    let position = randomFloorTile();
+    while (usedPositions.has(`${position.x},${position.y}`)) {
+      position = randomFloorTile();
+    }
+    usedPositions.add(`${position.x},${position.y}`);
+    cheeseburgers.push({ x: position.x, y: position.y, heal: 4 });
   }
 }
 
@@ -618,6 +671,17 @@ function rollDamage(range) {
   return randomInt(range.min, range.max);
 }
 
+function getPlayerDamageRange() {
+  const bonus = Math.floor((playerLevel - 1) / 2);
+  return { min: playerDamageRange.min + bonus, max: playerDamageRange.max + bonus };
+}
+
+function getEnemyDamageRange() {
+  const minBonus = Math.floor(floorLevel / 3);
+  const maxBonus = Math.floor(floorLevel / 2);
+  return { min: enemyDamageRange.min + minBonus, max: enemyDamageRange.max + maxBonus };
+}
+
 function addDamageFloat(x, y, amount, color) {
   damageFloats.push({
     x: x * TILE_SIZE + TILE_SIZE / 2,
@@ -646,8 +710,8 @@ function attackEnemyAt(x, y) {
   if (!enemy) {
     return;
   }
-  const playerDamage = rollDamage(playerDamageRange);
-  const enemyDamage = rollDamage(enemyDamageRange);
+  const playerDamage = rollDamage(getPlayerDamageRange());
+  const enemyDamage = rollDamage(getEnemyDamageRange());
   enemy.hp -= playerDamage;
   playerHp = Math.max(0, playerHp - enemyDamage);
   enemy.aggro = true;
@@ -657,6 +721,7 @@ function attackEnemyAt(x, y) {
   if (enemy.hp <= 0) {
     enemies = enemies.filter((target) => target !== enemy);
     statusText.textContent = "You defeated an enemy.";
+    awardExperience(2 + floorLevel);
   }
   if (playerHp <= 0) {
     triggerGameOver();
@@ -666,7 +731,7 @@ function attackEnemyAt(x, y) {
 }
 
 function attackPlayer(enemy) {
-  const damage = rollDamage(enemyDamageRange);
+  const damage = rollDamage(getEnemyDamageRange());
   playerHp = Math.max(0, playerHp - damage);
   enemy.aggro = true;
   statusText.textContent = "An enemy strikes you!";
@@ -675,6 +740,32 @@ function attackPlayer(enemy) {
     triggerGameOver();
   }
   updateHud();
+}
+
+function awardExperience(amount) {
+  playerXp += amount;
+  while (playerXp >= playerXpToNext) {
+    playerXp -= playerXpToNext;
+    playerLevel += 1;
+    playerXpToNext = Math.floor(playerXpToNext * 1.35) + 2;
+    playerMaxHp += 2;
+    playerHp = Math.min(playerMaxHp, playerHp + 2);
+    statusText.textContent = `Level up! You reached level ${playerLevel}.`;
+  }
+  updateHud();
+}
+
+function pickupCheeseburger(x, y) {
+  const index = cheeseburgers.findIndex(
+    (item) => item.x === x && item.y === y
+  );
+  if (index === -1) {
+    return false;
+  }
+  const [item] = cheeseburgers.splice(index, 1);
+  playerHp = Math.min(playerMaxHp, playerHp + item.heal);
+  updateHud();
+  return true;
 }
 
 function triggerGameOver() {
@@ -702,6 +793,7 @@ function render() {
     }
   }
 
+  drawCheeseburgers();
   drawEnemies();
   drawPlayer();
   drawEnemyHealthBars();
@@ -771,6 +863,11 @@ Object.values(sprites).forEach((img) => {
 
 window.addEventListener("keydown", handleKeydown);
 restartButton.addEventListener("click", () => {
+  floorLevel = 1;
+  playerLevel = 1;
+  playerXp = 0;
+  playerXpToNext = 5;
+  playerMaxHp = 10;
   playerHp = playerMaxHp;
   createDungeon();
   render();
