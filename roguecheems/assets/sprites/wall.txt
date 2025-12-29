@@ -1,0 +1,2 @@
+Placeholder for wall sprite.
+Replace with wall.png.
