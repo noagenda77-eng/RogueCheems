@@ -17,6 +17,10 @@ const menuToggle = document.getElementById("menu-toggle");
 const menuPanel = document.getElementById("menu-panel");
 const menuClose = document.getElementById("menu-close");
 const menuButtons = Array.from(document.querySelectorAll(".menu-button"));
+const lootOverlay = document.getElementById("loot-overlay");
+const lootDescription = document.getElementById("loot-description");
+const lootEquipButton = document.getElementById("loot-equip");
+const lootStoreButton = document.getElementById("loot-store");
 const gameOverOverlay = document.getElementById("game-over");
 const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
@@ -85,6 +89,8 @@ let isPanning = false;
 let panOffset = { x: 0, y: 0 };
 let panStart = { x: 0, y: 0 };
 let activePanel = null;
+let pendingLoot = null;
+let isLootPromptOpen = false;
 let chests = [];
 let inventory = [];
 let equipped = {
@@ -260,11 +266,14 @@ function movePlayer(dx, dy) {
   }
 
   if (isChestAt(nextX, nextY)) {
+    player = { x: nextX, y: nextY };
+    playerFrameIndex = (playerFrameIndex + 1) % 4;
     openChestAt(nextX, nextY);
     moveEnemies();
     applyRegen();
     updateCamera();
     updateHud();
+    render();
     return;
   }
 
@@ -916,11 +925,12 @@ function openChestAt(x, y) {
   if (index === -1) {
     return;
   }
-  const chest = chests.splice(index, 1)[0];
+  chests.splice(index, 1);
   const item = generateItem();
-  inventory.push(item);
+  pendingLoot = item;
+  isLootPromptOpen = true;
   statusText.textContent = `You found ${item.name}.`;
-  updateHud();
+  showLootPrompt(item);
 }
 
 function generateItem() {
@@ -993,6 +1003,35 @@ function renderInventory() {
     li.append(label, button);
     inventoryList.appendChild(li);
   });
+
+  equipWeaponText.classList.remove(
+    "rarity-common",
+    "rarity-rare",
+    "rarity-epic",
+    "rarity-legendary"
+  );
+  equipArmorText.classList.remove(
+    "rarity-common",
+    "rarity-rare",
+    "rarity-epic",
+    "rarity-legendary"
+  );
+  equipAccessoryText.classList.remove(
+    "rarity-common",
+    "rarity-rare",
+    "rarity-epic",
+    "rarity-legendary"
+  );
+
+  if (equipped.weapon?.rarity) {
+    equipWeaponText.classList.add(`rarity-${equipped.weapon.rarity.name}`);
+  }
+  if (equipped.armor?.rarity) {
+    equipArmorText.classList.add(`rarity-${equipped.armor.rarity.name}`);
+  }
+  if (equipped.accessory?.rarity) {
+    equipAccessoryText.classList.add(`rarity-${equipped.accessory.rarity.name}`);
+  }
 }
 
 function applyRegen() {
@@ -1007,6 +1046,23 @@ function triggerGameOver() {
   isGameOver = true;
   statusText.textContent = "You have fallen.";
   gameOverOverlay.classList.remove("hidden");
+}
+
+function showLootPrompt(item) {
+  if (!lootOverlay || !lootDescription) {
+    return;
+  }
+  lootDescription.textContent = `${item.name} (+${item.stats.damage} dmg, +${Math.round(
+    item.stats.crit * 100
+  )}% crit, +${item.stats.regen} regen)`;
+  lootDescription.className = `rarity-${item.rarity.name}`;
+  lootOverlay.classList.remove("hidden");
+}
+
+function closeLootPrompt() {
+  isLootPromptOpen = false;
+  pendingLoot = null;
+  lootOverlay?.classList.add("hidden");
 }
 
 function updateVisibility() {
@@ -1085,6 +1141,9 @@ function render() {
 }
 
 function handleKeydown(event) {
+  if (isLootPromptOpen) {
+    return;
+  }
   switch (event.key) {
     case "ArrowUp":
     case "w":
@@ -1218,6 +1277,24 @@ restartButton.addEventListener("click", () => {
   equipped = { weapon: null, armor: null, accessory: null };
   createDungeon();
   render();
+});
+lootEquipButton?.addEventListener("click", () => {
+  if (!pendingLoot) {
+    return;
+  }
+  equipped[pendingLoot.slot] = pendingLoot;
+  statusText.textContent = `Equipped ${pendingLoot.name}.`;
+  closeLootPrompt();
+  updateHud();
+});
+lootStoreButton?.addEventListener("click", () => {
+  if (!pendingLoot) {
+    return;
+  }
+  inventory.push(pendingLoot);
+  statusText.textContent = `Stored ${pendingLoot.name}.`;
+  closeLootPrompt();
+  updateHud();
 });
 menuToggle?.addEventListener("click", () =>
   toggleMenu(activePanel ? null : "stats")
