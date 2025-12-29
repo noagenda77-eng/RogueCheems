@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RogueCheems</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <section class="game">
+      <canvas id="game" width="800" height="608" aria-label="RogueCheems dungeon"></canvas>
+      <div class="hud-bar">
+        <div class="hp-bar">
+          <div class="bar-fill" id="hp-fill"></div>
+          <span class="bar-text" id="player-hp">0</span>
+        </div>
+        <div class="xp-bar">
+          <div class="bar-fill" id="xp-fill"></div>
+          <span class="bar-text" id="player-xp">0</span>
+        </div>
+      </div>
+      <p class="status" id="status">Explore the dungeon.</p>
+    </section>
+  </main>
+  <nav class="menu-bar">
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu">☰</button>
+    <button type="button" class="menu-button" data-menu="stats">Stats (1)</button>
+    <button type="button" class="menu-button" data-menu="equipment">Equipment (2)</button>
+    <button type="button" class="menu-button" data-menu="controls">Controls (3)</button>
+  </nav>
+  <section class="panel-drawer hidden" id="menu-panel">
+    <div class="panel-content">
+      <button type="button" class="panel-close" id="menu-close">✕</button>
+      <div class="panel-section hidden" data-panel="stats">
+        <h2>Adventurer Stats</h2>
+        <ul class="stats-list">
+          <li>Floor: <strong id="floor-level">1</strong></li>
+          <li>Level: <strong id="player-level">1</strong></li>
+          <li>Damage: <strong id="stat-damage">0</strong></li>
+          <li>Crit Chance: <strong id="stat-crit">0%</strong></li>
+          <li>Regen: <strong id="stat-regen">0</strong></li>
+        </ul>
+      </div>
+      <div class="panel-section hidden" data-panel="equipment">
+        <h2>Equipment</h2>
+        <div class="equipment">
+          <div class="equipment-slot">Weapon: <strong id="equip-weapon">None</strong></div>
+          <div class="equipment-slot">Armor: <strong id="equip-armor">None</strong></div>
+          <div class="equipment-slot">Accessory: <strong id="equip-accessory">None</strong></div>
+        </div>
+        <div class="inventory">
+          <p class="inventory-title">Inventory</p>
+          <ul id="inventory-list" class="inventory-list"></ul>
+        </div>
+      </div>
+      <div class="panel-section hidden" data-panel="controls">
+        <h2>Controls</h2>
+        <ul>
+          <li>Move: Arrow Keys / WASD</li>
+          <li>Zoom: Mouse Wheel</li>
+          <li>Pan: Middle Mouse</li>
+          <li>Stats: 1</li>
+          <li>Equipment: 2</li>
+          <li>Controls: 3</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  <div class="overlay hidden" id="game-over">
+    <div class="overlay-card">
+      <h2>Game Over</h2>
+      <p>The dungeon claims another hero.</p>
+      <button type="button" id="restart">Restart</button>
+    </div>
+  </div>
+  <div class="overlay hidden" id="loot-overlay">
+    <div class="overlay-card loot-card">
+      <h2>Treasure Found</h2>
+      <p id="loot-description">You found something.</p>
+      <div class="loot-actions">
+        <button type="button" id="loot-equip">Equip</button>
+        <button type="button" id="loot-store">Store</button>
+        <button type="button" id="loot-ignore">Ignore</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/main.js"></script>
+</body>
+</html>
