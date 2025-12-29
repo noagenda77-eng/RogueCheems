@@ -67,6 +67,9 @@ let playerXpToNext = 5;
 let cheeseburgers = [];
 let visibleTiles = [];
 let discoveredTiles = [];
+let isPanning = false;
+let panOffset = { x: 0, y: 0 };
+let panStart = { x: 0, y: 0 };
 
 const palette = {
   floor: "#2b3142",
@@ -821,8 +824,16 @@ function isVisible(x, y) {
 
 function updateCamera() {
   camera = {
-    x: player.x * TILE_SIZE - canvas.width / (2 * zoom) + TILE_SIZE / 2,
-    y: player.y * TILE_SIZE - canvas.height / (2 * zoom) + TILE_SIZE / 2,
+    x:
+      player.x * TILE_SIZE -
+      canvas.width / (2 * zoom) +
+      TILE_SIZE / 2 +
+      panOffset.x,
+    y:
+      player.y * TILE_SIZE -
+      canvas.height / (2 * zoom) +
+      TILE_SIZE / 2 +
+      panOffset.y,
   };
 }
 
@@ -910,6 +921,36 @@ function resizeCanvas() {
   render();
 }
 
+function handleMouseDown(event) {
+  if (event.button !== 1) {
+    return;
+  }
+  event.preventDefault();
+  isPanning = true;
+  panStart = { x: event.clientX, y: event.clientY };
+}
+
+function handleMouseMove(event) {
+  if (!isPanning) {
+    return;
+  }
+  const deltaX = (event.clientX - panStart.x) / zoom;
+  const deltaY = (event.clientY - panStart.y) / zoom;
+  panOffset = { x: -deltaX, y: -deltaY };
+  updateCamera();
+  render();
+}
+
+function handleMouseUp(event) {
+  if (event.button !== 1) {
+    return;
+  }
+  isPanning = false;
+  panOffset = { x: 0, y: 0 };
+  updateCamera();
+  render();
+}
+
 playerMaxHp = 10;
 playerHp = playerMaxHp;
 createDungeon();
@@ -932,6 +973,9 @@ restartButton.addEventListener("click", () => {
 });
 window.addEventListener("resize", resizeCanvas);
 canvas.addEventListener("wheel", handleWheel, { passive: false });
+canvas.addEventListener("mousedown", handleMouseDown);
+window.addEventListener("mousemove", handleMouseMove);
+window.addEventListener("mouseup", handleMouseUp);
 
 resizeCanvas();
 
