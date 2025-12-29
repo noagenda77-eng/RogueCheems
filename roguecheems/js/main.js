@@ -44,6 +44,7 @@ let playerFacing = 1;
 let camera = { x: 0, y: 0 };
 let zoom = 1;
 let enemies = [];
+let floorVariants = [];
 
 const palette = {
   floor: "#2b3142",
@@ -98,6 +99,9 @@ function createDungeon() {
   playerFacing = 1;
   zoom = 1;
   enemies = [];
+  floorVariants = Array.from({ length: MAP_HEIGHT }, () =>
+    Array.from({ length: MAP_WIDTH }, () => null)
+  );
 
   for (let i = 0; i < MAX_ROOMS; i += 1) {
     const width = randomInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
@@ -150,6 +154,7 @@ function createDungeon() {
   };
 
   dungeon[exit.y][exit.x] = TILE.EXIT;
+  assignFloorVariants();
   spawnEnemies();
   updateCamera();
 }
@@ -199,7 +204,7 @@ function drawTile(x, y, type) {
   }
 
   if (type === TILE.FLOOR) {
-    drawSprite(sprites.floor, x, y, palette.floor, ".");
+    drawFloorTile(x, y);
     return;
   }
 
@@ -312,6 +317,47 @@ function drawPlayer() {
   ctx.textBaseline = "middle";
   ctx.fillText("@", TILE_SIZE / 2, TILE_SIZE / 2);
   ctx.restore();
+}
+
+function drawFloorTile(x, y) {
+  const img = sprites.floor;
+  const pixelX = x * TILE_SIZE;
+  const pixelY = y * TILE_SIZE;
+  const variant = floorVariants[y][x] ?? 0;
+
+  if (img.complete && img.naturalWidth > 0) {
+    const columns = 2;
+    const rows = 4;
+    const frameWidth = img.naturalWidth / columns;
+    const frameHeight = img.naturalHeight / rows;
+    const frameX = (variant % columns) * frameWidth;
+    const frameY = Math.floor(variant / columns) * frameHeight;
+    ctx.drawImage(
+      img,
+      frameX,
+      frameY,
+      frameWidth,
+      frameHeight,
+      pixelX,
+      pixelY,
+      TILE_SIZE,
+      TILE_SIZE
+    );
+    return;
+  }
+
+  drawSprite(img, x, y, palette.floor, ".");
+}
+
+function assignFloorVariants() {
+  const maxVariants = 8;
+  for (let y = 0; y < MAP_HEIGHT; y += 1) {
+    for (let x = 0; x < MAP_WIDTH; x += 1) {
+      if (dungeon[y][x] === TILE.FLOOR) {
+        floorVariants[y][x] = randomInt(0, maxVariants - 1);
+      }
+    }
+  }
 }
 
 function randomFloorTile() {
