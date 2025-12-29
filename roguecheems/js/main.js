@@ -152,13 +152,14 @@ function movePlayer(dx, dy) {
     return;
   }
 
-  player = { x: nextX, y: nextY };
-
-  if (player.x === exit.x && player.y === exit.y) {
-    statusText.textContent = "You found the stairs! Press R to descend.";
-  } else {
-    statusText.textContent = "Explore the dungeon.";
+  if (nextX === exit.x && nextY === exit.y) {
+    createDungeon();
+    statusText.textContent = "You descend to the next floor.";
+    return;
   }
+
+  player = { x: nextX, y: nextY };
+  statusText.textContent = "Explore the dungeon.";
 }
 
 function drawTile(x, y, type) {
@@ -238,11 +239,6 @@ function handleKeydown(event) {
     case "d":
     case "D":
       movePlayer(1, 0);
-      break;
-    case "r":
-    case "R":
-      createDungeon();
-      statusText.textContent = "A new dungeon awaits.";
       break;
     default:
       return;
