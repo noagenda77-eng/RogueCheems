@@ -11,7 +11,7 @@ const ROOM_MAX_SIZE = 7;
 const BASE_CANVAS_WIDTH = 800;
 const BASE_CANVAS_HEIGHT = 608;
 const ZOOM_MIN = 0.75;
-const ZOOM_MAX = 2.5;
+const ZOOM_MAX = 12;
 const ZOOM_STEP = 0.1;
 
 const TILE = {
