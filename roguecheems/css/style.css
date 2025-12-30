@@ -36,6 +36,7 @@ canvas {
   background: #0f141f;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  touch-action: none;
 }
 
 .hud-bar {

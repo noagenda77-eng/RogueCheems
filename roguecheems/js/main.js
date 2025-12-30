@@ -1257,10 +1257,26 @@ function resizeCanvas() {
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    document.documentElement
+      .requestFullscreen?.()
+      .then(() => lockOrientationLandscape())
+      .catch(() => {});
     return;
   }
+  unlockOrientation();
   document.exitFullscreen?.();
+}
+
+function lockOrientationLandscape() {
+  if (screen.orientation?.lock) {
+    screen.orientation.lock("landscape").catch(() => {});
+  }
+}
+
+function unlockOrientation() {
+  if (screen.orientation?.unlock) {
+    screen.orientation.unlock();
+  }
 }
 
 function toggleMenu(panelName = null) {
@@ -1483,7 +1499,12 @@ inventoryList.addEventListener("click", (event) => {
   updateHud();
 });
 window.addEventListener("resize", resizeCanvas);
-document.addEventListener("fullscreenchange", resizeCanvas);
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) {
+    unlockOrientation();
+  }
+  resizeCanvas();
+});
 canvas.addEventListener("wheel", handleWheel, { passive: false });
 canvas.addEventListener("click", handleCanvasClick);
 canvas.addEventListener("mousedown", handleMouseDown);
