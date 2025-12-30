@@ -107,6 +107,7 @@ let pendingLoot = null;
 let isLootPromptOpen = false;
 let hasStartedAudio = false;
 let touchStart = null;
+let touchCurrent = null;
 let pinchStartDistance = null;
 let pinchStartZoom = null;
 let chests = [];
@@ -1369,6 +1370,8 @@ function handleTouchStart(event) {
     startAudioIfNeeded();
     const touch = event.touches[0];
     touchStart = { x: touch.clientX, y: touch.clientY };
+    touchCurrent = { ...touchStart };
+    event.preventDefault();
   }
 }
 
@@ -1384,12 +1387,19 @@ function handleTouchMove(event) {
     updateCamera();
     render();
     event.preventDefault();
+    return;
+  }
+
+  if (event.touches.length === 1 && touchStart) {
+    const touch = event.touches[0];
+    touchCurrent = { x: touch.clientX, y: touch.clientY };
   }
 }
 
 function handleTouchEnd(event) {
   if (isGameOver || isLootPromptOpen) {
     touchStart = null;
+    touchCurrent = null;
     pinchStartDistance = null;
     pinchStartZoom = null;
     return;
@@ -1405,9 +1415,11 @@ function handleTouchEnd(event) {
     return;
   }
 
-  const deltaX = touchStart.x - (event.changedTouches?.[0]?.clientX ?? touchStart.x);
-  const deltaY = touchStart.y - (event.changedTouches?.[0]?.clientY ?? touchStart.y);
-  const threshold = 24;
+  const endTouch = event.changedTouches?.[0] ?? touchStart;
+  const endPoint = touchCurrent ?? { x: endTouch.clientX, y: endTouch.clientY };
+  const deltaX = touchStart.x - endPoint.x;
+  const deltaY = touchStart.y - endPoint.y;
+  const threshold = 20;
   let move = null;
   if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
     move = { dx: deltaX > 0 ? -1 : 1, dy: 0 };
@@ -1415,7 +1427,21 @@ function handleTouchEnd(event) {
     move = { dx: 0, dy: deltaY > 0 ? -1 : 1 };
   }
 
+  if (!move) {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = (endPoint.x - rect.left) / zoom + camera.x;
+    const clickY = (endPoint.y - rect.top) / zoom + camera.y;
+    const targetX = Math.floor(clickX / TILE_SIZE);
+    const targetY = Math.floor(clickY / TILE_SIZE);
+    const dx = targetX - player.x;
+    const dy = targetY - player.y;
+    if (Math.abs(dx) + Math.abs(dy) === 1) {
+      move = { dx: Math.sign(dx), dy: Math.sign(dy) };
+    }
+  }
+
   touchStart = null;
+  touchCurrent = null;
   if (move) {
     movePlayer(move.dx, move.dy);
     render();
