@@ -1,0 +1,2 @@
+Placeholder for floor sprite.
+Replace with floor.png.
