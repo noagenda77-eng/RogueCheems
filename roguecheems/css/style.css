@@ -12,6 +12,7 @@
 body {
   margin: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 .game-shell {
@@ -19,7 +20,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 0;
 }
 
 .game {
@@ -31,7 +32,6 @@ body {
 
 canvas {
   width: 100%;
-  max-width: 800px;
   border: 2px solid #394361;
   background: #0f141f;
   border-radius: 12px;

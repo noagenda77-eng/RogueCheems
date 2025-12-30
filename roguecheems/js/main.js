@@ -22,6 +22,7 @@ const lootDescription = document.getElementById("loot-description");
 const lootEquipButton = document.getElementById("loot-equip");
 const lootStoreButton = document.getElementById("loot-store");
 const lootIgnoreButton = document.getElementById("loot-ignore");
+const fullscreenToggle = document.getElementById("fullscreen-toggle");
 const gameOverOverlay = document.getElementById("game-over");
 const restartButton = document.getElementById("restart");
 const ctx = canvas.getContext("2d");
@@ -1215,6 +1216,10 @@ function handleKeydown(event) {
     case "3":
       toggleMenu("controls");
       return;
+    case "f":
+    case "F":
+      toggleFullscreen();
+      return;
     default:
       return;
   }
@@ -1235,11 +1240,27 @@ function handleWheel(event) {
 }
 
 function resizeCanvas() {
-  const width = Math.min(window.innerWidth - 48, BASE_CANVAS_WIDTH);
-  canvas.width = Math.max(480, width);
-  canvas.height = Math.max(360, Math.floor(canvas.width * 0.76));
+  const maxWidth = window.innerWidth;
+  const maxHeight = window.innerHeight;
+  const aspect = 16 / 9;
+  let width = maxWidth;
+  let height = width / aspect;
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspect;
+  }
+  canvas.width = Math.max(640, Math.floor(width));
+  canvas.height = Math.max(360, Math.floor(height));
   updateCamera();
   render();
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    return;
+  }
+  document.exitFullscreen?.();
 }
 
 function toggleMenu(panelName = null) {
@@ -1443,6 +1464,10 @@ menuButtons.forEach((button) => {
     toggleMenu(button.dataset.menu);
   });
 });
+fullscreenToggle?.addEventListener("click", () => {
+  startAudioIfNeeded();
+  toggleFullscreen();
+});
 inventoryList.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) {
@@ -1458,6 +1483,7 @@ inventoryList.addEventListener("click", (event) => {
   updateHud();
 });
 window.addEventListener("resize", resizeCanvas);
+document.addEventListener("fullscreenchange", resizeCanvas);
 canvas.addEventListener("wheel", handleWheel, { passive: false });
 canvas.addEventListener("click", handleCanvasClick);
 canvas.addEventListener("mousedown", handleMouseDown);
