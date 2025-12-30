@@ -55,11 +55,23 @@ const spritePaths = {
   chest: "assets/sprites/chest.png",
 };
 
+const audioPaths = {
+  bgm: "assets/audio/bgm.mp3",
+  attack: "assets/audio/attack.wav",
+};
+
 const sprites = Object.fromEntries(
   Object.entries(spritePaths).map(([key, path]) => {
     const img = new Image();
     img.src = path;
     return [key, img];
+  })
+);
+
+const audio = Object.fromEntries(
+  Object.entries(audioPaths).map(([key, path]) => {
+    const sound = new Audio(path);
+    return [key, sound];
   })
 );
 
@@ -92,6 +104,7 @@ let panStart = { x: 0, y: 0 };
 let activePanel = null;
 let pendingLoot = null;
 let isLootPromptOpen = false;
+let hasStartedAudio = false;
 let chests = [];
 let inventory = [];
 let equipped = {
@@ -253,6 +266,7 @@ function movePlayer(dx, dy) {
   if (isGameOver) {
     return;
   }
+  startAudioIfNeeded();
   const nextX = player.x + dx;
   const nextY = player.y + dy;
 
@@ -864,6 +878,7 @@ function attackEnemyAt(x, y) {
   enemy.hp -= finalPlayerDamage;
   playerHp = Math.max(0, playerHp - enemyDamage);
   enemy.aggro = true;
+  playAttackSound();
   statusText.textContent = "You trade blows with an enemy.";
   addDamageFloat(enemy.x, enemy.y, finalPlayerDamage, "#f03e3e");
   addDamageFloat(player.x, player.y, enemyDamage, "#ff6b6b");
@@ -883,6 +898,7 @@ function attackPlayer(enemy) {
   const damage = rollDamage(getEnemyDamageRange());
   playerHp = Math.max(0, playerHp - damage);
   enemy.aggro = true;
+  playAttackSound();
   statusText.textContent = "An enemy strikes you!";
   addDamageFloat(player.x, player.y, damage, "#ff6b6b");
   if (playerHp <= 0) {
@@ -1066,6 +1082,25 @@ function closeLootPrompt() {
   lootOverlay?.classList.add("hidden");
 }
 
+function startAudioIfNeeded() {
+  if (hasStartedAudio) {
+    return;
+  }
+  hasStartedAudio = true;
+  audio.bgm.loop = true;
+  audio.bgm.volume = 0.4;
+  audio.bgm.play().catch(() => {});
+}
+
+function playAttackSound() {
+  if (!hasStartedAudio) {
+    return;
+  }
+  audio.attack.currentTime = 0;
+  audio.attack.volume = 0.6;
+  audio.attack.play().catch(() => {});
+}
+
 function updateVisibility() {
   for (let y = 0; y < MAP_HEIGHT; y += 1) {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
@@ -1232,6 +1267,7 @@ function handleMouseDown(event) {
     return;
   }
   event.preventDefault();
+  startAudioIfNeeded();
   isPanning = true;
   panStart = { x: event.clientX, y: event.clientY };
 }
@@ -1261,6 +1297,7 @@ function handleCanvasClick(event) {
   if (isGameOver || isLootPromptOpen) {
     return;
   }
+  startAudioIfNeeded();
   const rect = canvas.getBoundingClientRect();
   const clickX = (event.clientX - rect.left) / zoom + camera.x;
   const clickY = (event.clientY - rect.top) / zoom + camera.y;
@@ -1329,7 +1366,10 @@ menuToggle?.addEventListener("click", () =>
 );
 menuClose?.addEventListener("click", () => toggleMenu());
 menuButtons.forEach((button) => {
-  button.addEventListener("click", () => toggleMenu(button.dataset.menu));
+  button.addEventListener("click", () => {
+    startAudioIfNeeded();
+    toggleMenu(button.dataset.menu);
+  });
 });
 inventoryList.addEventListener("click", (event) => {
   const button = event.target.closest("button");
