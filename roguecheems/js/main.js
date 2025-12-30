@@ -56,7 +56,7 @@ const spritePaths = {
 };
 
 const audioPaths = {
-  bgm: "assets/audio/bgm.mp3",
+  bgm: "assets/audio/bgm.wav",
   attack: "assets/audio/attack.wav",
 };
 
