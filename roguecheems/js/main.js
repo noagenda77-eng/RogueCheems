@@ -105,6 +105,9 @@ let activePanel = null;
 let pendingLoot = null;
 let isLootPromptOpen = false;
 let hasStartedAudio = false;
+let touchStart = null;
+let pinchStartDistance = null;
+let pinchStartZoom = null;
 let chests = [];
 let inventory = [];
 let equipped = {
@@ -1313,6 +1316,75 @@ function handleCanvasClick(event) {
   render();
 }
 
+function handleTouchStart(event) {
+  if (isGameOver || isLootPromptOpen) {
+    return;
+  }
+  if (event.touches.length === 2) {
+    startAudioIfNeeded();
+    const [a, b] = event.touches;
+    pinchStartDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    pinchStartZoom = zoom;
+    return;
+  }
+
+  if (event.touches.length === 1) {
+    startAudioIfNeeded();
+    const touch = event.touches[0];
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  }
+}
+
+function handleTouchMove(event) {
+  if (isGameOver || isLootPromptOpen) {
+    return;
+  }
+  if (event.touches.length === 2 && pinchStartDistance && pinchStartZoom) {
+    const [a, b] = event.touches;
+    const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const scale = distance / pinchStartDistance;
+    zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pinchStartZoom * scale));
+    updateCamera();
+    render();
+    event.preventDefault();
+  }
+}
+
+function handleTouchEnd(event) {
+  if (isGameOver || isLootPromptOpen) {
+    touchStart = null;
+    pinchStartDistance = null;
+    pinchStartZoom = null;
+    return;
+  }
+
+  if (pinchStartDistance) {
+    pinchStartDistance = null;
+    pinchStartZoom = null;
+    return;
+  }
+
+  if (!touchStart) {
+    return;
+  }
+
+  const deltaX = touchStart.x - (event.changedTouches?.[0]?.clientX ?? touchStart.x);
+  const deltaY = touchStart.y - (event.changedTouches?.[0]?.clientY ?? touchStart.y);
+  const threshold = 24;
+  let move = null;
+  if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+    move = { dx: deltaX > 0 ? -1 : 1, dy: 0 };
+  } else if (Math.abs(deltaY) > threshold) {
+    move = { dx: 0, dy: deltaY > 0 ? -1 : 1 };
+  }
+
+  touchStart = null;
+  if (move) {
+    movePlayer(move.dx, move.dy);
+    render();
+  }
+}
+
 playerMaxHp = 10;
 playerHp = playerMaxHp;
 createDungeon();
@@ -1389,6 +1461,9 @@ window.addEventListener("resize", resizeCanvas);
 canvas.addEventListener("wheel", handleWheel, { passive: false });
 canvas.addEventListener("click", handleCanvasClick);
 canvas.addEventListener("mousedown", handleMouseDown);
+canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+canvas.addEventListener("touchend", handleTouchEnd);
 window.addEventListener("mousemove", handleMouseMove);
 window.addEventListener("mouseup", handleMouseUp);
 
