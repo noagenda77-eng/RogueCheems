@@ -1088,13 +1088,16 @@ function closeLootPrompt() {
 }
 
 function startAudioIfNeeded() {
-  if (hasStartedAudio) {
-    return;
-  }
-  hasStartedAudio = true;
   audio.bgm.loop = true;
   audio.bgm.volume = 0.4;
-  audio.bgm.play().catch(() => {});
+  if (!hasStartedAudio) {
+    hasStartedAudio = true;
+    audio.bgm.play().catch(() => {});
+    return;
+  }
+  if (audio.bgm.paused) {
+    audio.bgm.play().catch(() => {});
+  }
 }
 
 function playAttackSound() {
@@ -1339,9 +1342,7 @@ function handleCanvasClick(event) {
     return;
   }
   startAudioIfNeeded();
-  const rect = canvas.getBoundingClientRect();
-  const clickX = (event.clientX - rect.left) / zoom + camera.x;
-  const clickY = (event.clientY - rect.top) / zoom + camera.y;
+  const { x: clickX, y: clickY } = getCanvasPoint(event.clientX, event.clientY);
   const targetX = Math.floor(clickX / TILE_SIZE);
   const targetY = Math.floor(clickY / TILE_SIZE);
 
@@ -1352,6 +1353,16 @@ function handleCanvasClick(event) {
   }
   movePlayer(Math.sign(dx), Math.sign(dy));
   render();
+}
+
+function getCanvasPoint(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: ((clientX - rect.left) * scaleX) / zoom + camera.x,
+    y: ((clientY - rect.top) * scaleY) / zoom + camera.y,
+  };
 }
 
 function handleTouchStart(event) {
@@ -1393,6 +1404,7 @@ function handleTouchMove(event) {
   if (event.touches.length === 1 && touchStart) {
     const touch = event.touches[0];
     touchCurrent = { x: touch.clientX, y: touch.clientY };
+    event.preventDefault();
   }
 }
 
@@ -1428,9 +1440,7 @@ function handleTouchEnd(event) {
   }
 
   if (!move) {
-    const rect = canvas.getBoundingClientRect();
-    const clickX = (endPoint.x - rect.left) / zoom + camera.x;
-    const clickY = (endPoint.y - rect.top) / zoom + camera.y;
+    const { x: clickX, y: clickY } = getCanvasPoint(endPoint.x, endPoint.y);
     const targetX = Math.floor(clickX / TILE_SIZE);
     const targetY = Math.floor(clickY / TILE_SIZE);
     const dx = targetX - player.x;
