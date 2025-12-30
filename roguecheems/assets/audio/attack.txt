@@ -1,0 +1,2 @@
+Placeholder for attack sound effect.
+Replace with attack.wav.
